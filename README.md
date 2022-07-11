@@ -6,7 +6,7 @@ A Little project to show the current song and time on a 16x2 LCD
 Currently the python script is designed to run on linux. It uses `/dev/ttyUSB0`, but can be changed inside the script. Make sure you have your spotify token for reading currently playing song (link can be found [here](https://developer.spotify.com/console/get-users-currently-playing-track/?market=&additional_types=))
 
 ### Uploading Code to Arduino
-The arduino code is stored inside the DeskLCD.ini file and needs to be uploaded before you run the python script. 
+The arduino code is stored inside the DeskLCD.ino file and needs to be uploaded before you run the python script. 
 
 ### Running Python
 Make sure your spotify token and serial port is configured, then start up the script. The lcd should change to `DeskLCD` to init the lcd and make sure the serial port is open. After 4 seconds, the lcd should change to showing either the song that is playing or the current time. All errors should be caught and debug info sent to terminal. 
