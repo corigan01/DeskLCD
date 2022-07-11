@@ -8,7 +8,7 @@ import time
 #
 # CHANGE ACCESS_TOKEN TO YOUR OWN
 #
-ACCESS_TOKEN = 'BQB7KjnhP_NFnKIvpCnEyrPPAo773l48g4o0yM1roqhl3NvGXCwhAntDgPxoYCr01RX_qfQKWpYfAZrK_N51IamCSGkXtYmYpj6GyOSSyKKOOb_Qd9bx1kjPhoV6CfMgarerusBkkf4MGwZ6RndSpuwdKQm91NYItE7H2pL5Pq7QYnx4h440aQ'
+ACCESS_TOKEN = '[YOUR ACCESS TOKEN]'
 
 # The serial port used to communicate with the LCD
 s = serial.Serial()
