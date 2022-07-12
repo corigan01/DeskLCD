@@ -4,11 +4,16 @@ import time
 import serial
 import requests
 import time
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
 
-#
-# CHANGE ACCESS_TOKEN TO YOUR OWN
-#
-ACCESS_TOKEN = '[YOUR ACCESS TOKEN]'
+SpotifyScope = "user-read-currently-playing"
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+            client_id="e28d3bd0a1654942ada239f8e9e41a6b",
+            client_secret="996424de418c433c863483948468953b",
+            scope=SpotifyScope,
+            redirect_uri="https://iphottub.net/spotify/callback/",
+            cache_path="/home/corigan01/.cache/spotipy/token.json"))
 
 # The serial port used to communicate with the LCD
 s = serial.Serial()
@@ -43,14 +48,11 @@ def TimeDifference(current_time):
 # Should spotify recheck if the song is changed?
 last_spotify_time = time.time()
 program_start_time = time.time()
-time_interval = 20
-def ShouldSpotifySendRequest(token):
+time_interval = 10
+def ShouldSpotifySendRequest():
     global last_spotify_time
     global time_interval
     global program_start_time
-
-    if token == "None":
-        return False # No token, no request
 
     if time.time() - last_spotify_time > time_interval or time.time() - program_start_time < time_interval / 2:
         last_spotify_time = time.time()
@@ -69,50 +71,38 @@ def GetCurrentTime():
     return time.strftime("%I:%M:%S %p", now)
 
 # Get the track info from spotify
-def GetCurrentSpotifyInfo(access_token):
-    SPOTIFY_GET_CURRENT_TRACK_URL = 'https://api.spotify.com/v1/me/player/currently-playing'
+def GetCurrentSpotifyInfo():
+    global sp
 
-    response = requests.get(
-        SPOTIFY_GET_CURRENT_TRACK_URL,
-        headers={
-            "Authorization": f"Bearer {access_token}"
-        }
-    )
+    try:
+        json_resp = sp.current_user_playing_track()
+    
 
-    if response.status_code != 200:
+        track_id = json_resp['item']['id']
+        track_name = json_resp['item']['name']
+        artists = [artist for artist in json_resp['item']['artists']]
+
+        link = json_resp['item']['external_urls']['spotify']
+
+        artist_names = ', '.join([artist['name'] for artist in artists])
+
         current_track_info = {
-            "id": "None",
-            "track_name": "None",
-            "artists": "None",
-            "link": "None",
-            "error": response.status_code
+            "id": track_id,
+            "track_name": track_name,
+            "artists": artist_names,
+            "link": link,
+            "error": 0
         }
-
+        
         return current_track_info
 
-    json_resp = response.json()
+    except KeyError:
+        return {"error": 1}
 
-    track_id = json_resp['item']['id']
-    track_name = json_resp['item']['name']
-    artists = [artist for artist in json_resp['item']['artists']]
-
-    link = json_resp['item']['external_urls']['spotify']
-
-    artist_names = ', '.join([artist['name'] for artist in artists])
-
-    current_track_info = {
-        "id": track_id,
-        "track_name": track_name,
-        "artists": artist_names,
-        "link": link,
-        "error": 0
-    }
-    
-    return current_track_info
 
 # Get the currently playing track
-def GetCurrentTrack(access_token):
-    spotify_info = GetCurrentSpotifyInfo(access_token)
+def GetCurrentTrack():
+    spotify_info = GetCurrentSpotifyInfo()
     error_code = spotify_info["error"]
     current_track = ""
 
@@ -180,8 +170,6 @@ def SongChanged(song):
 
 # Main function
 def main():
-    # Get the token
-    global ACCESS_TOKEN
 
     # Open the serial port
     if OpenSerialPort("/dev/ttyUSB0", 9600):
@@ -194,7 +182,14 @@ def main():
     InitLCD()
     ClearLCD()
 
-    song = "None"
+    song = GetCurrentTrack()
+
+    if IsSongValid(song):
+        print("[INFO]: Spotify API working!")
+        print("[INFO]: Currently Playing: " + song)
+    else:
+        print("[ERROR]: Spotify API didn't return a valid song")
+        
 
     # Main Loop of the deamon
     while SerialPortConnected():
@@ -207,15 +202,15 @@ def main():
             # This has two jobs:
             #   1. Check if the token is valid
             #   2. Check if the time has changed a significant amount to not spam the spotify api
-            if ShouldSpotifySendRequest(ACCESS_TOKEN):
-                song = GetCurrentTrack(ACCESS_TOKEN)
+            if ShouldSpotifySendRequest():
+                song = GetCurrentTrack()
 
                 if not IsSongValid(song):
                     error_code = song.split(":")[1]
 
                     if error_code == "401": # Token expired
                         print("[ERROR]: Invalid Access Token")
-                        ACCESS_TOKEN = "None"
+                        song = "None"
 
                     elif error_code == "204": # No song playing
                         print("[ERROR]: No Song Currently Playing")
@@ -267,6 +262,9 @@ if __name__ == "__main__":
         print("[INFO]: Closing Serial Port...")
         s.close()
         print("[INFO]: Goodbye!")
+        exit()
+    except serial.serialutil.SerialException:
+        print("[ERROR]: Serial Port Error")
         exit()
     except Exception as e:
         print("[ERROR]: Unexpected {}".format(e))
